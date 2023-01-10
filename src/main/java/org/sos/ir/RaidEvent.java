@@ -6,6 +6,7 @@ package org.sos.ir;
 
 import game.faction.FACTIONS;
 import game.time.TIME;
+import init.RES;
 import init.race.RACES;
 import init.resources.RESOURCE;
 import init.resources.RESOURCES;
@@ -20,6 +21,8 @@ import org.porcupine.utilities.UsedImplicitly;
 import settlement.main.SETT;
 import settlement.stats.STATS;
 import snake2d.util.datatypes.COORDINATE;
+import snake2d.util.file.FileGetter;
+import snake2d.util.file.FilePutter;
 import util.data.BOOLEAN_OBJECT;
 import view.main.VIEW;
 import view.sett.IDebugPanelSett;
@@ -28,6 +31,8 @@ import world.army.WARMYD;
 import world.entity.WPathing;
 import world.entity.army.WArmy;
 import world.map.regions.Region;
+
+import java.io.IOException;
 
 import static org.sos.ir.Constants.*;
 
@@ -43,18 +48,20 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 	private int valueOfRangedWeapon;
 	private int valueOfArmor;
 	
-	private double gameTimeLastUpdate;
+	private boolean initialized;
+	private double nextRaidTimer;
 	
 	private final StockpileStatistics stockpileStatistics;
 	private ArmyBudgetDivision armyBudgetDivision;
 	
 	private final BOOLEAN_OBJECT<Region> playerFinder = t -> t.faction() == FACTIONS.player();
 	
+	@UsedImplicitly
 	public RaidEvent() {
 		IDebugPanelSett.add("Raid Event", this::triggerRaid);
 		
+		initialized = false;
 		stockpileStatistics = Statistics.get(StockpileStatistics.class);
-		gameTimeLastUpdate = TIME.currentSecond();
 	}
 	
 	@Override
@@ -66,61 +73,23 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 			return;
 		}
 		
-		if (canRaidOccur()) {
+		if (Statistics.getPopulationStats().getCurrentPopulationCount() < 50) {
+			return;
+		}
+		
+		// If this is the first time we're updating this script.
+		if (!initialized && nextRaidTimer == 0) {
+			nextRaidTimer = TIME.secondsPerDay;
+			initialized = true;
+		}
+		
+		nextRaidTimer -= delta;
+		
+		// Get a random number between RAID_FREQUENCY_DAYS_LOWER and RAID_FREQUENCY_DAYS_HIGHER
+		if (nextRaidTimer <= 0) {
+			nextRaidTimer = TIME.secondsPerDay * (RAID_FREQUENCY_DAYS_LOWER + Math.random() * (RAID_FREQUENCY_DAYS_HIGHER - RAID_FREQUENCY_DAYS_LOWER));
 			triggerRaid();
 		}
-	}
-	
-	/**
-	 * Invoked when the object is being serialized.
-	 *
-	 * @param writer The writer to write to.
-	 */
-//	@Override
-//	public void onSerialize(FilePutter writer) {
-//		writer.d(timeOfLastRaid);
-//	}
-	
-	/**
-	 * Invoked when the object is being deserialized.
-	 *
-	 * @param reader The reader to read from.
-	 */
-//	@Override
-//	public void onDeserialize(FileGetter reader) {
-//		try {
-//			timeOfLastRaid = reader.d();
-//		} catch (IOException e) {
-//			Logger.error("Failed to deserialize RaidEvent.", e);
-//		}
-//	}
-	
-	/**
-	 * Calculates the chance that a raid will occur, taking into account the frequency of this check. The average
-	 * frequency can be configured through {@link Constants#RAID_FREQUENCY_YEARS}.
-	 *
-	 * @return whether a raid can occur.
-	 */
-	private boolean canRaidOccur() {
-		double gameTimeSinceLastUpdate = TIME.currentSecond() - gameTimeLastUpdate;
-		
-		double secondsInOneYear = TIME.secondsPerDay * 16;
-		double secondsInRaidInterval = secondsInOneYear * RAID_FREQUENCY_YEARS;
-		
-		double chancePerSecond = 1.0 / secondsInRaidInterval;
-		
-		// We need to account for the last time we did this check.
-		chancePerSecond *= gameTimeSinceLastUpdate;
-		
-		double averageTimeBetweenEvents = 1.0 / chancePerSecond;
-		double averageTimeBetweenEventsInYears = averageTimeBetweenEvents / secondsInOneYear;
-		
-		Logger.debug("Average time between events: " + averageTimeBetweenEventsInYears + " years.");
-		// Prints between 640 years and 1024 years, which is way too much.
-		
-		gameTimeLastUpdate = TIME.currentSecond();
-		
-		return Math.random() < chancePerSecond;
 	}
 	
 	private void clearCache() {

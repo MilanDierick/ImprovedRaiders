@@ -3,9 +3,9 @@ package org.sos.ir;
 public final class Constants {
 	
 	//<editor-fold desc="RaidEventConstants">
-	public static final int RAID_FREQUENCY_YEARS = 5;
-	public static final int RAID_FREQUENCY_LOWER_BOUNDS = 2;
-	public static final int RAID_FREQUENCY_UPPER_BOUNDS = 10;
+	public static final int RAID_FREQUENCY_YEARS = 2;
+	public static final int RAID_FREQUENCY_DAYS_LOWER = 8;
+	public static final int RAID_FREQUENCY_DAYS_HIGHER = 8;
 	public static final int BASE_PAWN_VALUE = 500;
 	public static final float RATION_CONSUMPTION_PER_DAY = 0.25f;
 	public static final float DRINK_CONSUMPTION_PER_DAY = 0.25f;

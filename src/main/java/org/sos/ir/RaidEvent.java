@@ -6,7 +6,6 @@ package org.sos.ir;
 
 import game.faction.FACTIONS;
 import game.time.TIME;
-import init.RES;
 import init.race.RACES;
 import init.resources.RESOURCE;
 import init.resources.RESOURCES;
@@ -24,6 +23,7 @@ import snake2d.util.datatypes.COORDINATE;
 import snake2d.util.file.FileGetter;
 import snake2d.util.file.FilePutter;
 import util.data.BOOLEAN_OBJECT;
+import view.main.MessageText;
 import view.main.VIEW;
 import view.sett.IDebugPanelSett;
 import world.World;
@@ -62,6 +62,7 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		IDebugPanelSett.add("Raid Event", this::triggerRaid);
 		
 		initialized = false;
+		nextRaidTimer = 0;
 		stockpileStatistics = Statistics.get(StockpileStatistics.class);
 	}
 	
@@ -74,10 +75,6 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 			return;
 		}
 		
-		if (Statistics.getPopulationStats().getCurrentPopulationCount() < 50) {
-			return;
-		}
-		
 		// If this is the first time we're updating this script.
 		if (!initialized && nextRaidTimer == 0) {
 			double raidFrequencyVariationInSeconds = getRandomNumber(RAID_FREQUENCY_DAYS_LOWER,
@@ -86,11 +83,13 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 			
 			nextRaidTimer = RAID_FREQUENCY_YEARS * DAYS_PER_YEAR * TIME.secondsPerDay + raidFrequencyVariationInSeconds;
 			initialized = true;
+			
+			new MessageText("Improved Raiders", "Improved Raiders version 0.1.0 has been initialized!").send();
 		}
 		
 		nextRaidTimer -= delta;
 		
-		if (nextRaidTimer <= 0) {
+		if (nextRaidTimer <= 0 && Statistics.getPopulationStats().getCurrentPopulationCount() >= 50) {
 			triggerRaid();
 			
 			double raidFrequencyVariationInSeconds = getRandomNumber(RAID_FREQUENCY_DAYS_LOWER,
@@ -98,6 +97,32 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 			) * TIME.secondsPerDay;
 			
 			nextRaidTimer = RAID_FREQUENCY_YEARS * DAYS_PER_YEAR * TIME.secondsPerDay + raidFrequencyVariationInSeconds;
+		}
+	}
+	
+	/**
+	 * Invoked when the object is being serialized.
+	 *
+	 * @param writer The writer to write to.
+	 */
+	@Override
+	public void onSerialize(FilePutter writer) {
+		writer.bool(initialized);
+		writer.d(nextRaidTimer);
+	}
+	
+	/**
+	 * Invoked when the object is being deserialized.
+	 *
+	 * @param reader The reader to read from.
+	 */
+	@Override
+	public void onDeserialize(FileGetter reader) {
+		try {
+			initialized = reader.bool();
+			nextRaidTimer = reader.d();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 	
@@ -267,8 +292,6 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		calculatePawnValue();
 		calculateEquipmentValue();
 		calculateBudget();
-		
-		Logger.info("Triggering raid event, population: " + settlementPopulation + ", wealth: " + settlementWealth);
 		
 		Region spawnRegion = findSuitableRegion();
 		

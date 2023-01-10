@@ -98,9 +98,6 @@ public class RaiderArmyConstructor {
 		int totalRangedWeaponCount = rangedWeaponCount;
 		int totalArmourCount = armourCount;
 		
-		Logger.info("Cost per pawn: " + costPerPawn + ", pawn budget: " + pawnsBudget);
-		Logger.info("Creating an army with " + totalSoldierCount + " soldiers, divided into " + divisionCount + " divisions.");
-		
 		// This serves as a shortcut in case the budget is too low to even create a single division.
 		if (totalSoldierCount < MIN_REBEL_ARMY_SIZE) {
 			createDivision(race, MIN_REBEL_ARMY_SIZE, meleeWeaponCount, rangedWeaponCount, armourCount);

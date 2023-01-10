@@ -33,6 +33,7 @@ import world.entity.army.WArmy;
 import world.map.regions.Region;
 
 import java.io.IOException;
+import java.util.Random;
 
 import static org.sos.ir.Constants.*;
 
@@ -79,17 +80,30 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		
 		// If this is the first time we're updating this script.
 		if (!initialized && nextRaidTimer == 0) {
-			nextRaidTimer = TIME.secondsPerDay;
+			double raidFrequencyVariationInSeconds = getRandomNumber(RAID_FREQUENCY_DAYS_LOWER,
+			                                                         RAID_FREQUENCY_DAYS_HIGHER
+			) * TIME.secondsPerDay;
+			
+			nextRaidTimer = RAID_FREQUENCY_YEARS * DAYS_PER_YEAR * TIME.secondsPerDay + raidFrequencyVariationInSeconds;
 			initialized = true;
 		}
 		
 		nextRaidTimer -= delta;
 		
-		// Get a random number between RAID_FREQUENCY_DAYS_LOWER and RAID_FREQUENCY_DAYS_HIGHER
 		if (nextRaidTimer <= 0) {
-			nextRaidTimer = TIME.secondsPerDay * (RAID_FREQUENCY_DAYS_LOWER + Math.random() * (RAID_FREQUENCY_DAYS_HIGHER - RAID_FREQUENCY_DAYS_LOWER));
 			triggerRaid();
+			
+			double raidFrequencyVariationInSeconds = getRandomNumber(RAID_FREQUENCY_DAYS_LOWER,
+			                                                         RAID_FREQUENCY_DAYS_HIGHER
+			) * TIME.secondsPerDay;
+			
+			nextRaidTimer = RAID_FREQUENCY_YEARS * DAYS_PER_YEAR * TIME.secondsPerDay + raidFrequencyVariationInSeconds;
 		}
+	}
+	
+	@SuppressWarnings("SameParameterValue")
+	private int getRandomNumber(int min, int max) {
+		return new Random().nextInt((max - min) + 1) + min;
 	}
 	
 	private void clearCache() {

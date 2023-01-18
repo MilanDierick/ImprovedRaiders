@@ -4,6 +4,7 @@
 
 package org.sos.ir;
 
+import game.GAME;
 import game.faction.FACTIONS;
 import game.time.TIME;
 import init.race.RACES;
@@ -15,7 +16,6 @@ import org.porcupine.modules.ITickCapable;
 import org.porcupine.statistics.ResourceMetadata;
 import org.porcupine.statistics.Statistics;
 import org.porcupine.statistics.StockpileStatistics;
-import org.porcupine.utilities.Logger;
 import org.porcupine.utilities.UsedImplicitly;
 import settlement.main.SETT;
 import settlement.stats.STATS;
@@ -33,6 +33,9 @@ import world.entity.army.WArmy;
 import world.map.regions.Region;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import static org.sos.ir.Constants.*;
@@ -60,6 +63,7 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 	@UsedImplicitly
 	public RaidEvent() {
 		IDebugPanelSett.add("Raid Event", this::triggerRaid);
+		GAME.events().raider.supress();
 		
 		initialized = false;
 		nextRaidTimer = 0;
@@ -224,31 +228,13 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		return WPathing.findAdjacentRegion(region, playerFinder) != null;
 	}
 	
-	/**
-	 * Finds a suitable region to spawn a raid in, that is adjacent to a region owned by the player.
-	 *
-	 * @return a region that is suitable to spawn a raid in.
-	 *
-	 * @implNote With how it is currently set up, a raid will always spawn in the same region given the player doesn't
-	 * occupy new regions. This is not the intended behaviour, but it is a good starting point. Ideally, the raid should
-	 * collect all regions that are suitable to spawn a raid in, and then randomly select one of those regions.
-	 * <p>
-	 * TODO: Implement the above.
-	 */
-	private Region findSuitableRegion() {
-		Region region = null;
+	private boolean spawnArmyInRegion(Region stagingRegion) {
+		Region targetRegion = WPathing.findAdjacentRegion(stagingRegion.cx(), stagingRegion.cy(), playerFinder);
 		
-		for (Region r : World.REGIONS().all()) {
-			if (isRegionSuitable(r)) {
-				region = r;
-				break;
-			}
+		if (targetRegion == null) {
+			return false;
 		}
 		
-		return region;
-	}
-	
-	private void spawnArmyInRegion(Region stagingRegion) {
 		// Find a random point in the staging region to spawn the army.
 		COORDINATE coordinate = WPathing.random(stagingRegion);
 		
@@ -256,13 +242,7 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		WArmy army = World.ARMIES().createRebel(coordinate.x() - 1, coordinate.y() - 1);
 		
 		if (army == null) {
-			throw new IllegalStateException("Failed to create rebel army in staging region " + stagingRegion.name());
-		}
-		
-		Region targetRegion = WPathing.findAdjacentRegion(stagingRegion.cx(), stagingRegion.cy(), playerFinder);
-		
-		if (targetRegion == null) {
-			throw new IllegalStateException("Failed to find target region for staging region " + stagingRegion.name());
+			return false;
 		}
 		
 		RaiderArmyConstructor constructor = new RaiderArmyConstructor(targetRegion, army);
@@ -283,6 +263,8 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		for (WARMYD.WArmySupply supply : WARMYD.supplies().all) {
 			supply.current().set(army, supply.max(army));
 		}
+		
+		return true;
 	}
 	
 	private void triggerRaid() {
@@ -293,14 +275,26 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		calculateEquipmentValue();
 		calculateBudget();
 		
-		Region spawnRegion = findSuitableRegion();
+		List<Region> availableRegions = new ArrayList<>();
 		
-		// If we can't find a suitable region, then something is seriously wrong.
-		if (spawnRegion == null) {
-			throw new IllegalStateException("RaidEvent: no suitable region found to spawn raid in.");
+		for (Region region : World.REGIONS().all()) {
+			if (isRegionSuitable(region)) {
+				availableRegions.add(region);
+			}
 		}
 		
-		spawnArmyInRegion(spawnRegion);
+		if (availableRegions.isEmpty()) {
+			throw new IllegalStateException("ImprovedRaiders: no suitable region found to spawn raid in.");
+		}
+		
+		// Randomly mix these regions
+		Collections.shuffle(availableRegions);
+		
+		for (Region region : availableRegions) {
+			if (spawnArmyInRegion(region)) {
+				break;
+			}
+		}
 		
 		int soldierCount = armyBudgetDivision.getPawnsBudget() / valueOfPawn;
 		String raiderName = RACES.all().get(0).info.armyNames.rnd();

@@ -7,7 +7,6 @@ package org.sos.ir;
 import init.RES;
 import init.race.RACES;
 import init.race.Race;
-import org.porcupine.utilities.Logger;
 import settlement.stats.STATS;
 import settlement.stats.StatsEquippables;
 import world.World;
@@ -176,7 +175,7 @@ public class RaiderArmyConstructor {
 	
 	private StatsEquippables.EQUIPPABLE_MILITARY findEquippableWithName(String equippableName) {
 		for (StatsEquippables.EQUIPPABLE_MILITARY equippable : STATS.EQUIP().military_all()) {
-			if (equippable.resource().key.toString().equals(equippableName)) {
+			if (equippable.resource().key.equals(equippableName)) {
 				return equippable;
 			}
 		}

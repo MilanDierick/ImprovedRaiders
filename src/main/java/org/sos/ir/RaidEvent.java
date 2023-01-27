@@ -270,8 +270,8 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 	private void triggerRaid() {
 		clearCache();
 		calculatePopulation();
-		calculateSettlementProsperity();
 		calculatePawnValue();
+		calculateSettlementProsperity();
 		calculateEquipmentValue();
 		calculateBudget();
 		
@@ -298,6 +298,10 @@ public class RaidEvent implements IScriptEntity, ITickCapable, ISerializable {
 		
 		int soldierCount = armyBudgetDivision.getPawnsBudget() / valueOfPawn;
 		String raiderName = RACES.all().get(0).info.armyNames.rnd();
+		
+		if (soldierCount < MIN_REBEL_ARMY_SIZE) {
+			soldierCount = MIN_REBEL_ARMY_SIZE;
+		}
 		
 		CouncilorMessage councilorMessage = new CouncilorMessage("Councilor", soldierCount);
 		
